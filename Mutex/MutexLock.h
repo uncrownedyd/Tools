@@ -1,30 +1,57 @@
 #include <unistd.h>
 #include <pthread.h>
+#include <assert.h>
 #include <boost/noncopyable.hpp>
 
-class MutexLock
+#if 0
+#define MCHECK(ret) ({ __type__ (ret) errnum = (ret);       \
+                        assert(errnum == 0); (void) errnum;})
+#endif
+
+#define DCHECK(ret)                         \
+        do { __type__ (ret) errnum = (ret); \   
+             assert(errnum == 0); (void) errnum; } while (0)
+
+class MutexLock : boost::noncopyable
 {
 public:
-    MutexLock() : boost::noncopyable
+    MutexLock()
     {
-        pthread_mutex_init(&mutex_, NULL);
+        DCHECK(pthread_mutex_init(&mutex_, NULL));
     }
 
     ~MutexLock()
     {
-        pthread_mutex_destroy(&mutex_);
+        DCHECK(pthread_mutex_destroy(&mutex_));
     }
 
     void lock()
     {
-        pthread_mutex_lock(&mutex_);
+        DCHECK(pthread_mutex_lock(&mutex_));
     }
 
     void unlock()
     {
-        pthread_mutex_unlock(&mutex_);
+        DCHECK(pthread_mutex_unlock(&mutex_));
     }
     
 private:
     pthread_mutex_t mutex_;
+};
+
+class MutexLockGuard : boost::noncopyable
+{
+public:
+    explicit MutexLockGuard(MutexLock &mutex) : mutex_(mutex)
+    {
+        mutex_.lock();
+    }
+
+    ~MutexLockGuard()
+    {
+        mutex_.unlock();
+    }
+
+private:
+    MutexLock& mutex_;
 };
